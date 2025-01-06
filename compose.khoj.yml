@@ -1,0 +1,52 @@
+services:
+  khoj:
+    container_name: ${HARBOR_CONTAINER_PREFIX}.khoj
+    image: ghcr.io/khoj-ai/khoj:${HARBOR_KHOJ_VERSION}
+    ports:
+      - ${HARBOR_KHOJ_PORT:-42110}:42110
+    depends_on:
+      khoj_db:
+        condition: service_healthy
+    volumes:
+      - ./khoj/config:/root/.khoj
+      - ${HARBOR_KHOJ_MODELS_CACHE}:/root/.cache/torch/sentence_transformers
+      - ${HARBOR_KHOJ_MODELS_CACHE}:/root/.cache/huggingface
+    environment:
+      - POSTGRES_DB=khoj
+      - POSTGRES_USER=${HARBOR_KHOJ_DB_USER}
+      - POSTGRES_PASSWORD=${HARBOR_KHOJ_DB_PASSWORD}
+      - POSTGRES_HOST=khoj_db
+      - POSTGRES_PORT=5432
+      - KHOJ_DJANGO_SECRET_KEY=${HARBOR_KHOJ_SECRET_KEY}
+      - KHOJ_DEBUG=False
+      - KHOJ_ADMIN_EMAIL=${HARBOR_KHOJ_ADMIN_EMAIL}
+      - KHOJ_ADMIN_PASSWORD=${HARBOR_KHOJ_ADMIN_PASSWORD}
+      - KHOJ_TERRARIUM_URL=http://khoj_sandbox:8080
+      - KHOJ_SEARXNG_URL=http://khoj_search:8080
+
+  khoj_db:
+    container_name: ${HARBOR_CONTAINER_PREFIX}.khoj_db
+    image: ankane/pgvector:${HARBOR_KHOJ_DB_VERSION}
+    volumes:
+      - ./khoj/db:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: ${HARBOR_KHOJ_DB_USER}
+      POSTGRES_PASSWORD: ${HARBOR_KHOJ_DB_PASSWORD}
+      POSTGRES_DB: khoj
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${HARBOR_KHOJ_DB_USER}"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  khoj_sandbox:
+    container_name: ${HARBOR_CONTAINER_PREFIX}.khoj_sandbox
+    image: ghcr.io/khoj-ai/terrarium:${HARBOR_KHOJ_SANDBOX_VERSION}
+    
+  khoj_search:
+    container_name: ${HARBOR_CONTAINER_PREFIX}.khoj_search
+    image: docker.io/searxng/searxng:${HARBOR_KHOJ_SEARCH_VERSION}
+    volumes:
+      - ./khoj/search:/etc/searxng
+    environment:
+      - SEARXNG_BASE_URL=http://khoj_search:8080/

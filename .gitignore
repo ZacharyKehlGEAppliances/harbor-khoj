@@ -110,3 +110,8 @@ pipelines/
 
 # Qdrant
 qdrant/storage
+
+#Khoj
+/khoj/config/*
+/khoj/db/*
+/khoj/search/*
